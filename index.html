@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Website</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="terminal">
+        <div id="output"></div>
+        <div id="input-line">
+            <span>$</span>
+            <div id="input-container">
+                <input type="text" id="input" autofocus placeholder="Enter a command (e.g., cd home, ls, help)">
+                <div id="cursor"></div>
+            </div>
+        </div>
+    </div>
+    <div id="login-form">
+        <pre id="login-art"></pre>
+        <p id="login-description"></p>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button id="login-button">Login</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
