@@ -32,11 +32,24 @@ Navigation Guide:
 - clear      : Clear the screen and show the navigation guide
 - secret     : Access the secret page (requires password)
 - logout     : Log out of the system
+- projects   : List all projects
+- project [name] : View details of a specific project
 
 Enter a command to get started.`,
     about: 'This is a terminal-style website created as a fun project.',
     contact: 'You can reach us at contact@terminalwebsite.com',
-    secret: 'Congratulations! You\'ve accessed the secret page. Here\'s a virtual cookie: 🍪'
+    secret: 'Congratulations! You\'ve accessed the secret page. Here\'s a virtual cookie: 🍪',
+    projects: 'Use "projects" to see all projects or "project [name]" to view details of a specific project.'
+};
+
+const projects = {
+    "dummy": {
+        name: "Dummy Project",
+        description: "This is a dummy project to showcase the project feature.",
+        technologies: ["HTML", "CSS", "JavaScript"],
+        github: "https://github.com/yourusername/dummy",
+        demo: "https://yourusername.github.io/dummy"
+    }
 };
 
 const secretPassword = 'opensesame';
@@ -59,6 +72,50 @@ function listPages() {
     displayOutput(`Available pages:\n${pageList}`);
 }
 
+function listProjects() {
+    let projectList = "Available projects:\n\n";
+    for (const key in projects) {
+        projectList += `${projects[key].name} (${key})\n`;
+    }
+    displayOutput(projectList);
+}
+
+function viewProject(projectName) {
+    const project = projects[projectName];
+    if (project) {
+        clearScreen();
+        const projectView = `
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║  ${project.name.toUpperCase().padEnd(62)}║
+║                                                                ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  Description:                                                  ║
+║  ${project.description.match(/.{1,60}/g).join('\n║  ').padEnd(62)}║
+║                                                                ║
+║  Technologies:                                                 ║
+║  ${project.technologies.join(', ').padEnd(62)}║
+║                                                                ║
+║  GitHub:${project.github.padEnd(55)}║
+║  Demo:${project.demo.padEnd(57)}║
+║                                                                ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  Commands:                                                     ║
+║  - back    : Return to the main terminal                       ║
+║  - github  : Open GitHub repository                            ║
+║  - demo    : Open live demo                                    ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+`;
+        displayOutput(projectView, true);
+        currentPage = 'project-view';
+    } else {
+        displayOutput(`Project "${projectName}" not found. Use 'projects' to see all available projects.`);
+    }
+}
+
 function processCommand(command) {
     if (awaitingPassword) {
         if (command === secretPassword) {
@@ -73,27 +130,52 @@ function processCommand(command) {
     }
 
     const cmd = command.toLowerCase().trim();
-    if (cmd.startsWith('cd ')) {
-        const page = cmd.split(' ')[1];
-        if (pages.hasOwnProperty(page) && page !== 'secret') {
-            currentPage = page;
-            displayOutput(pages[page], true);
-        } else {
-            displayOutput(`Error: Page "${page}" not found`);
+    if (currentPage === 'project-view') {
+        switch (cmd) {
+            case 'back':
+                currentPage = 'home';
+                clearScreen();
+                break;
+            case 'github':
+                window.open(projects[currentProject].github, '_blank');
+                displayOutput('Opening GitHub repository...');
+                break;
+            case 'demo':
+                window.open(projects[currentProject].demo, '_blank');
+                displayOutput('Opening live demo...');
+                break;
+            default:
+                displayOutput(`Command not recognized: ${command}`);
         }
-    } else if (cmd === 'help') {
-        displayOutput(pages.home);
-    } else if (cmd === 'clear') {
-        clearScreen();
-    } else if (cmd === 'ls') {
-        listPages();
-    } else if (cmd === 'secret') {
-        awaitingPassword = true;
-        displayOutput('Enter the password to access the secret page:');
-    } else if (cmd === 'logout') {
-        logout();
     } else {
-        displayOutput(`Command not recognized: ${command}`);
+        if (cmd.startsWith('cd ')) {
+            const page = cmd.split(' ')[1];
+            if (pages.hasOwnProperty(page) && page !== 'secret') {
+                currentPage = page;
+                displayOutput(pages[page], true);
+            } else {
+                displayOutput(`Error: Page "${page}" not found`);
+            }
+        } else if (cmd === 'help') {
+            displayOutput(pages.home);
+        } else if (cmd === 'clear') {
+            clearScreen();
+        } else if (cmd === 'ls') {
+            listPages();
+        } else if (cmd === 'secret') {
+            awaitingPassword = true;
+            displayOutput('Enter the password to access the secret page:');
+        } else if (cmd === 'logout') {
+            logout();
+        } else if (cmd === 'projects') {
+            listProjects();
+        } else if (cmd.startsWith('project ')) {
+            const projectName = cmd.split(' ')[1];
+            currentProject = projectName;
+            viewProject(projectName);
+        } else {
+            displayOutput(`Command not recognized: ${command}`);
+        }
     }
 }
 
