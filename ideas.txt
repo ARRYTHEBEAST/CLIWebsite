@@ -7,13 +7,16 @@ Photo Gallery:
 Command: gallery list
 Command: gallery view [album-name]
 Show your photos organized by albums or categories
+
 Meme Collection:
 Command: memes random
 Command: memes category [category-name]
 Display your favorite memes, possibly organized by categories
+
 Resume/CV:
 Command: cv view
 Show your professional experience, skills, and education in a structured format
+
 Blog/Thoughts:
 Command: blog list
 Command: blog read [post-title]
@@ -22,15 +25,19 @@ Share your thoughts, experiences, or technical write-up
 Social Media Links:
 Command: socials
 Display links to your various social media profiles
+
 7. Skills Showcase:
 Command: skills
 List your technical skills, possibly with proficiency levels
+
 Achievements/Certifications:
 Command: achievements
 Display your notable achievements, awards, or certifications
+
 Music Playlist:
 Command: playlist view
 Share your favorite music or a playlist that represents you
+
 Book Recommendations:
 Command: books recommend
 List your favorite books or current reading list
@@ -38,27 +45,34 @@ List your favorite books or current reading list
 Travel Map:
 Command: travels
 Show a text-based map or list of places you've visited
+
 Quotes Collection:
 Command: quote random
 Display your favorite quotes
+
 ASCII Art Creator:
 Command: ascii create [text]
 Convert text or simple images into ASCII art
+
 Personal Timeline:
 Command: timeline view
 Show major events in your life or career
+
 Contact Form:
 Command: contact
 Allow visitors to send you a message directly from the terminal
 
 Easter Eggs:
 Hidden commands that reveal fun facts about you or unlock secret areas of the site
+
 Language Switcher:
 Command: language set [lang-code]
 If you're multilingual, allow viewing your content in different languages
+
 Theme Customizer:
 Command: theme set [theme-name]
 Allow visitors to customize the terminal's appearance
+
 Mini-Games:
 Command: game [game-name]
 Implement simple text-based games that reflect your interests

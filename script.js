@@ -34,12 +34,16 @@ Navigation Guide:
 - logout     : Log out of the system
 - projects   : List all projects
 - project [name] : View details of a specific project
+- social     : List all social media platforms
+- social [platform] : View link for a specific platform
+- social [platform] -o : Open link for a specific platform
 
 Enter a command to get started.`,
     about: 'This is a terminal-style website created as a fun project.',
     contact: 'You can reach us at contact@terminalwebsite.com',
     secret: 'Congratulations! You\'ve accessed the secret page. Here\'s a virtual cookie: 🍪',
-    projects: 'Use "projects" to see all projects or "project [name]" to view details of a specific project.'
+    projects: 'Use "projects" to see all projects or "project [name]" to view details of a specific project.',
+    social: 'Use "social" to list all available social media platforms, "social [platform]" to view a specific link, or "social [platform] -o" to open the link.'
 };
 
 const projects = {
@@ -54,11 +58,22 @@ const projects = {
 
 const secretPassword = 'opensesame';
 
+const socialLinks = {
+    github: "https://github.com/yourusername",
+    linkedin: "https://www.linkedin.com/in/yourusername",
+    twitter: "https://twitter.com/yourusername",
+    instagram: "https://www.instagram.com/yourusername",
+    // Add more social media links as needed
+};
+
 function displayOutput(text, clearFirst = false) {
     if (clearFirst) {
         output.textContent = '';
     }
-    output.textContent += text + '\n\n';
+    const clockHTML = `<pre id="ascii-clock" style="position: absolute; top: 10px; right: 10px; font-family: monospace; font-size: 10px; line-height: 1; color: #0f0;"></pre>`;
+    output.innerHTML += text.replace(/\n/g, '<br>') + '<br>';
+    output.innerHTML += clockHTML;
+    updateClock();
     terminal.scrollTop = terminal.scrollHeight;
 }
 
@@ -100,7 +115,7 @@ function viewProject(projectName) {
 ║  GitHub:${project.github.padEnd(55)}║
 ║  Demo:${project.demo.padEnd(57)}║
 ║                                                                ║
-╠════════════════════════════════════════════════════════════════╣
+╠═══════════════════════════════════════════════════════════════╣
 ║                                                                ║
 ║  Commands:                                                     ║
 ║  - back    : Return to the main terminal                       ║
@@ -116,7 +131,31 @@ function viewProject(projectName) {
     }
 }
 
+function listSocialPlatforms() {
+    const platforms = Object.keys(socialLinks).join(', ');
+    displayOutput(`Available social media platforms: ${platforms}\n\nUse "social [platform]" to view a specific link.`);
+}
+
+function displaySocialLink(platform) {
+    if (socialLinks[platform]) {
+        displayOutput(`${platform}: ${socialLinks[platform]}\n\nUse "social ${platform} -o" to open this link.`);
+    } else {
+        displayOutput(`Invalid platform: ${platform}\n\nUse "social" to see available platforms.`);
+    }
+}
+
+function openSocialLink(platform) {
+    if (socialLinks[platform]) {
+        window.open(socialLinks[platform], '_blank');
+        displayOutput(`Opening ${platform}...`);
+    } else {
+        displayOutput(`Invalid platform: ${platform}\n\nUse "social" to see available platforms.`);
+    }
+}
+
 function processCommand(command) {
+    displayOutput(`$ ${command}`);
+    
     if (awaitingPassword) {
         if (command === secretPassword) {
             awaitingPassword = false;
@@ -130,7 +169,19 @@ function processCommand(command) {
     }
 
     const cmd = command.toLowerCase().trim();
-    if (currentPage === 'project-view') {
+    const parts = cmd.split(' ');
+    
+    if (parts[0] === 'social') {
+        if (parts.length === 1) {
+            listSocialPlatforms();
+        } else if (parts.length === 2) {
+            displaySocialLink(parts[1]);
+        } else if (parts.length === 3 && parts[2] === '-o') {
+            openSocialLink(parts[1]);
+        } else {
+            displayOutput('Invalid social command. Use "social" for usage information.');
+        }
+    } else if (currentPage === 'project-view') {
         switch (cmd) {
             case 'back':
                 currentPage = 'home';
@@ -152,7 +203,7 @@ function processCommand(command) {
             const page = cmd.split(' ')[1];
             if (pages.hasOwnProperty(page) && page !== 'secret') {
                 currentPage = page;
-                displayOutput(pages[page], true);
+                displayOutput(pages[page]);
             } else {
                 displayOutput(`Error: Page "${page}" not found`);
             }
@@ -182,7 +233,6 @@ function processCommand(command) {
 input.addEventListener('keyup', function(event) {
     if (event.key === 'Enter') {
         const command = this.value;
-        displayOutput(awaitingPassword ? '$ ********' : `$ ${command}`);
         processCommand(command);
         this.value = '';
     }
@@ -254,3 +304,71 @@ if (localStorage.getItem('isLoggedIn') === 'true') {
 // Initial display
 displayOutput(pages.home);
 updateCursorPosition();
+
+// Add these new functions for the ASCII analog clock
+function getAnalogClock() {
+    const now = new Date();
+    const hours = now.getHours() % 12;
+    const minutes = now.getMinutes();
+    const seconds = now.getSeconds();
+
+    const clockFace = [
+        "==============================",
+        "      ┌───────────────┐      ",
+        "    ┌─┘      XII      └─┐    ",
+        "  ┌─┘ •               • └─┐  ",
+        "┌─┘                       └─┐ ",
+        "│ •                       • │",
+        "│                           │",
+        "│ •                       • │",
+        "│                           │",
+        "| IX        ·           III |",
+        "│                           │",
+        "│ •                       • │",
+        "│                           │",
+        "│  •                      • │",
+        "└─┐                       ┌─┘ ",
+        "  └─┐ •               • ┌─┘  ",
+        "    └─┐   •  VI   •   ┌─┘    ",
+        "      └───────────────┘      ",
+        "================================"
+
+    ];
+
+    const center = { x: 13, y: 8 };
+    const handLengths = { hour: 5, minute: 7, second: 9 };
+
+    function drawHand(angle, length, symbol) {
+        for (let i = 0; i <= length; i++) {
+            const x = Math.round(center.x + Math.sin(angle) * i);
+            const y = Math.round(center.y - Math.cos(angle) * i);
+            if (y >= 0 && y < clockFace.length && x >= 0 && x < clockFace[y].length) {
+                let line = clockFace[y].split('');
+                line[x] = symbol;
+                clockFace[y] = line.join('');
+            }
+        }
+    }
+
+    const hourAngle = (hours + minutes / 60) * 30 * (Math.PI / 180);
+    const minuteAngle = minutes * 6 * (Math.PI / 180);
+    const secondAngle = seconds * 6 * (Math.PI / 180);
+
+    drawHand(hourAngle, handLengths.hour, '━');
+    drawHand(minuteAngle, handLengths.minute, '─');
+    drawHand(secondAngle, handLengths.second, '·');
+
+    return clockFace.join('\n');
+}
+
+function updateClock() {
+    const clockElement = document.getElementById('ascii-clock');
+    if (clockElement) {
+        clockElement.textContent = getAnalogClock();
+    }
+}
+
+// Update the clock every second for smoother movement
+setInterval(updateClock, 1000);
+updateClock(); // Initial update
+
