@@ -39,6 +39,7 @@ Navigation Guide:
 - social [platform] -o : Open link for a specific platform
 - snake start [difficulty] : Start a new Snake game in the bottom right corner
                              Difficulties: easy, medium (default), hard
+                             The game will start after a 5-second countdown.
 
 Enter a command to get started.`,
     about: 'This is a terminal-style website created as a fun project.',
@@ -171,10 +172,10 @@ const difficulties = {
 };
 
 const directionArrows = {
-    'up': '^',
-    'down': 'v',
-    'left': '<',
-    'right': '>'
+    'up': '↑',
+    'down': '↓',
+    'left': '←',
+    'right': '→'
 };
 
 function startSnakeGame(difficulty = 'medium') {
@@ -185,30 +186,65 @@ function startSnakeGame(difficulty = 'medium') {
         gameDifficulty = 'medium';
     }
 
-    snakeGame = document.createElement('pre');
-    snakeGame.id = 'snake-game';
-    snakeGame.style.position = 'fixed';
-    snakeGame.style.bottom = '10px';
-    snakeGame.style.right = '10px';
-    snakeGame.style.width = `${gameArea.width + 2}ch`;
-    snakeGame.style.height = `${gameArea.height + 3}em`;
-    snakeGame.style.lineHeight = '1';
-    snakeGame.style.fontFamily = 'monospace';
-    snakeGame.style.border = '1px solid #0f0';
-    snakeGame.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    snakeGame.style.zIndex = '1000';
-    snakeGame.tabIndex = 0; // Make div focusable
-    document.body.appendChild(snakeGame);
+    const snakeArt = `
+           /^\\/^\\
+         _|__|  O|
+\\/     /~     \\_/ \\
+ \\____|__________/  \\
+        \\_______      \\
+                \`\\     \\                 \\
+                  |     |                  \\
+                 /      /                    \\
+                /     /                       \\\\
+              /      /                         \\ \\
+             /     /                            \\  \\
+           /     /             _----_            \\   \\
+          /     /           _-~      ~-_         |   |
+         (      (        _-~    _--_    ~-_     _/   |
+          \\      ~-____-~    _-~    ~-_    ~-_-~    /
+            ~-_           _-~          ~-_       _-~
+               ~--______-~                ~-___-~
+    `;
 
-    snake = [{ x: 5, y: 5 }];
-    direction = 'right';
-    spawnFood();
+    displayOutput(snakeArt);
+    displayOutput(`Snake game is starting on ${gameDifficulty} difficulty...`);
 
-    snakeGame.focus();
-    document.addEventListener('keydown', handleKeyPress);
-    gameLoop = setInterval(updateSnakeGame, difficulties[gameDifficulty].speed);
+    let countdown = 5;
+    const countdownInterval = setInterval(() => {
+        displayOutput(`${countdown}...`);
+        countdown--;
+        if (countdown === 0) {
+            clearInterval(countdownInterval);
+            initializeGame();
+        }
+    }, 1000);
 
-    displayOutput(`Snake game started on ${gameDifficulty} difficulty. Use arrow keys to control the snake!`);
+    function initializeGame() {
+        snakeGame = document.createElement('pre');
+        snakeGame.id = 'snake-game';
+        snakeGame.style.position = 'fixed';
+        snakeGame.style.bottom = '10px';
+        snakeGame.style.right = '10px';
+        snakeGame.style.width = `${gameArea.width + 2}ch`;
+        snakeGame.style.height = `${gameArea.height + 3}em`;
+        snakeGame.style.lineHeight = '1';
+        snakeGame.style.fontFamily = 'monospace';
+        snakeGame.style.border = '1px solid #0f0';
+        snakeGame.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        snakeGame.style.zIndex = '1000';
+        snakeGame.tabIndex = 0; // Make div focusable
+        document.body.appendChild(snakeGame);
+
+        snake = [{ x: 5, y: 5 }];
+        direction = 'right';
+        spawnFood();
+
+        snakeGame.focus();
+        document.addEventListener('keydown', handleKeyPress);
+        gameLoop = setInterval(updateSnakeGame, difficulties[gameDifficulty].speed);
+
+        displayOutput(`Game started! Use arrow keys to control the snake.`);
+    }
 }
 
 function spawnFood() {
