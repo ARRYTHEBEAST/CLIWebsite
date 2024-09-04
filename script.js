@@ -141,9 +141,9 @@ function updateDoomFace() {
     const rightEye = face.indexOf("( <'(##)`><");
     
     const eyes = {
-        left:   ["<<'(##)'>", "( <'(##)<<"],
+        left:   ["<'(##)'<<<<<<", "( <'(##)<<<<<"],
         center: ["<>'(##)'>", "( <'(##)><"],
-        right:  [">'(##)'>", "( <'(##)>>"]
+        right:  ["<<<<<'(##)'>", "( <<<<<'(##)>"]
     };
 
     face = face.slice(0, leftEye) + eyes[doomFaceState.eyeDirection][0] + face.slice(leftEye + 10);
@@ -161,7 +161,7 @@ function updateDoomFace() {
 
     // Apply blinking
     if (doomFaceState.blinking) {
-        face = face.replace(/><'.*?'>/g, "--'-----'--").replace(/\( <'.*?</, "(-'-----'--)");
+        face = face.replace("><'(##)'>", "--'-----'--").replace("<'(##)\`><", "(-'-----'--)");
     }
 
     doomFace.textContent = face;
@@ -240,7 +240,7 @@ function viewProject(projectName) {
 ║  GitHub:${project.github.padEnd(55)}║
 ║  Demo:${project.demo.padEnd(57)}║
 ║                                                                ║
-╠═══════════════════════════════════════════════════════════════╣
+╠═════════════════════════════════=══════════════════════════════╣
 ║                                                                ║
 ║  Commands:                                                     ║
 ║  - back    : Return to the main terminal                       ║
