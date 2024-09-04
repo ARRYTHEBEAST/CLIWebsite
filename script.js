@@ -37,6 +37,8 @@ Navigation Guide:
 - social     : List all social media platforms
 - social [platform] : View link for a specific platform
 - social [platform] -o : Open link for a specific platform
+- snake start [difficulty] : Start a new Snake game in the bottom right corner
+                             Difficulties: easy, medium (default), hard
 
 Enter a command to get started.`,
     about: 'This is a terminal-style website created as a fun project.',
@@ -153,6 +155,140 @@ function openSocialLink(platform) {
     }
 }
 
+// Add these variables for the Snake game
+let snakeGame = null;
+let snake = [];
+let food = {};
+let direction = 'right';
+let gameLoop = null;
+let gameArea = { width: 20, height: 15 };
+let gameDifficulty = 'medium';
+
+const difficulties = {
+    easy: { speed: 200, growthRate: 1 },
+    medium: { speed: 150, growthRate: 1 },
+    hard: { speed: 100, growthRate: 2 }
+};
+
+const directionArrows = {
+    'up': '^',
+    'down': 'v',
+    'left': '<',
+    'right': '>'
+};
+
+function startSnakeGame(difficulty = 'medium') {
+    if (snakeGame) return; // Game already running
+
+    gameDifficulty = difficulty.toLowerCase();
+    if (!difficulties[gameDifficulty]) {
+        gameDifficulty = 'medium';
+    }
+
+    snakeGame = document.createElement('pre');
+    snakeGame.id = 'snake-game';
+    snakeGame.style.position = 'fixed';
+    snakeGame.style.bottom = '10px';
+    snakeGame.style.right = '10px';
+    snakeGame.style.width = `${gameArea.width + 2}ch`;
+    snakeGame.style.height = `${gameArea.height + 3}em`;
+    snakeGame.style.lineHeight = '1';
+    snakeGame.style.fontFamily = 'monospace';
+    snakeGame.style.border = '1px solid #0f0';
+    snakeGame.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    snakeGame.style.zIndex = '1000';
+    snakeGame.tabIndex = 0; // Make div focusable
+    document.body.appendChild(snakeGame);
+
+    snake = [{ x: 5, y: 5 }];
+    direction = 'right';
+    spawnFood();
+
+    snakeGame.focus();
+    document.addEventListener('keydown', handleKeyPress);
+    gameLoop = setInterval(updateSnakeGame, difficulties[gameDifficulty].speed);
+
+    displayOutput(`Snake game started on ${gameDifficulty} difficulty. Use arrow keys to control the snake!`);
+}
+
+function spawnFood() {
+    do {
+        food = {
+            x: Math.floor(Math.random() * gameArea.width),
+            y: Math.floor(Math.random() * gameArea.height)
+        };
+    } while (snake.some(segment => segment.x === food.x && segment.y === food.y));
+}
+
+function handleKeyPress(event) {
+    const key = event.key;
+    if (key === 'ArrowUp' && direction !== 'down') direction = 'up';
+    if (key === 'ArrowDown' && direction !== 'up') direction = 'down';
+    if (key === 'ArrowLeft' && direction !== 'right') direction = 'left';
+    if (key === 'ArrowRight' && direction !== 'left') direction = 'right';
+    event.preventDefault();
+}
+
+function updateSnakeGame() {
+    // Move snake
+    const head = { ...snake[0] };
+    switch (direction) {
+        case 'up': head.y--; break;
+        case 'down': head.y++; break;
+        case 'left': head.x--; break;
+        case 'right': head.x++; break;
+    }
+
+    // Check collision with walls or self
+    if (head.x < 0 || head.x >= gameArea.width || head.y < 0 || head.y >= gameArea.height ||
+        snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+        endGame();
+        return;
+    }
+
+    snake.unshift(head);
+
+    // Check if food is eaten
+    if (head.x === food.x && head.y === food.y) {
+        for (let i = 0; i < difficulties[gameDifficulty].growthRate; i++) {
+            snake.push({...snake[snake.length - 1]});
+        }
+        spawnFood();
+    } else {
+        snake.pop();
+    }
+
+    renderGame();
+}
+
+function renderGame() {
+    let gameDisplay = Array(gameArea.height).fill().map(() => Array(gameArea.width).fill(' '));
+    snake.forEach((segment, index) => {
+        if (index === 0) {
+            gameDisplay[segment.y][segment.x] = directionArrows[direction];
+        } else {
+            gameDisplay[segment.y][segment.x] = 'o';
+        }
+    });
+    gameDisplay[food.y][food.x] = '*';
+
+    const borderTop = '┌' + '─'.repeat(gameArea.width) + '┐\n';
+    const borderBottom = '└' + '─'.repeat(gameArea.width) + '┘\n';
+    const gameContent = gameDisplay.map(row => '│' + row.join('') + '│\n').join('');
+
+    snakeGame.textContent = borderTop + gameContent + borderBottom + `Score: ${snake.length - 1}  ${gameDifficulty} mode`;
+}
+
+function endGame() {
+    clearInterval(gameLoop);
+    document.removeEventListener('keydown', handleKeyPress);
+    displayOutput(`Game Over! Your score: ${snake.length - 1}. Difficulty: ${gameDifficulty}`);
+    setTimeout(() => {
+        document.body.removeChild(snakeGame);
+        snakeGame = null;
+    }, 3000);
+}
+
 function processCommand(command) {
     displayOutput(`$ ${command}`);
     
@@ -181,6 +317,9 @@ function processCommand(command) {
         } else {
             displayOutput('Invalid social command. Use "social" for usage information.');
         }
+    } else if (parts[0] === 'snake' && parts[1] === 'start') {
+        const difficulty = parts[2] || 'medium';
+        startSnakeGame(difficulty);
     } else if (currentPage === 'project-view') {
         switch (cmd) {
             case 'back':
