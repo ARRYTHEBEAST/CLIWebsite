@@ -175,6 +175,7 @@ function updateDoomFace() {
     if (Math.random() < 0.05) {
         doomFaceState.mouthState = ['neutral', 'happy', 'sad', 'ooh'][Math.floor(Math.random() * 4)];
     }
+    
 
     // Randomly blink
     doomFaceState.blinking = Math.random() < 0.1;
