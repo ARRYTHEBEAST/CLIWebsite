@@ -40,6 +40,7 @@ Navigation Guide:
 - snake start [difficulty] : Start a new Snake game in the bottom right corner
                              Difficulties: easy, medium (default), hard
                              The game will start after a 5-second countdown.
+- Note: An animated ASCII art face will appear in the top-left corner.
 
 Enter a command to get started.`,
     about: 'This is a terminal-style website created as a fun project.',
@@ -69,19 +70,139 @@ const socialLinks = {
     // Add more social media links as needed
 };
 
+// Add these variables for the Doom face
+let doomFace = null;
+let doomFaceState = {
+    eyeDirection: 'center',
+    mouthState: 'neutral',
+    blinking: false
+};
+let doomFaceInterval = null;
+
+function createDoomFace() {
+    if (doomFace) return; // Face already exists
+
+    doomFace = document.createElement('pre');
+    doomFace.id = 'doom-face';
+    doomFace.style.position = 'fixed';
+    doomFace.style.top = '0px';
+    doomFace.style.right = '300px';
+    doomFace.style.fontFamily = 'monospace';
+    doomFace.style.color = '#0f0';
+    doomFace.style.zIndex = '1000';
+    document.body.appendChild(doomFace);
+
+    updateDoomFace();
+    doomFaceInterval = setInterval(updateDoomFace, 200); // Update every 200ms for smoother animation
+}
+
+function updateDoomFace() {
+    const baseFace = `
+               _____    ____
+             .#########.#######..
+          .#######################.
+        .############################.
+       .################################.
+      .#########,##,#####################.
+     .#########-#,'########## ############.
+    .######'#-##' # ##'### #. \`####:#######.
+    #####:'# #'###,##' # # +#. \`###:':######
+   .####,'###,##  ###  # # #\`#. -####\`######.
+  .####+.' ,'#  ##' #   # # #\`#\`.\`#####::####
+  ####'    #  '##'  #   #_'# #.## \`#######;##
+  #:##'      '       #   # \`\`..__ \`#######:#
+  #:##'  .#######s.   #.  .s######.\`#####:##
+  #:##   ."______""'    '""_____"". \`.#####:#
+ .#:##   ><'(##)'> )    ( <'(##)\`><   \`####;#
+ ##:##  , , -==-' '.    .\` \`-==- . \\  ######'
+ #|-'| / /      ,  :    : ,       \\ \` :####:'
+ :#  |: '  '   /  .     .  .  \`    \`  |\`####
+ #|  :|   /   '  '       \`  \\   . ,   :  #:# 
+ #L. | | ,  /   \`.-._ _.-.'   .  \\ \\  : ) J##
+###\\ \`  /  '                   \\  : : |  /##
+ ## #|.:: '       _    _        \` | | |'####
+ #####|\\  |  (.-'.__\`-'__.\`-.)   :| ' ######
+ ######\\:      \`-...___..-' '     :: /######
+ #######\`\`.                   ,'|  /#######
+.# ######\\  \\       ___       / /' /#######
+# #'#####|\\  \\    -     -    /  ,'|### #. #.
+\`#  #####| '-.\`             ' ,-'  |### #  #
+    #' \`#|    '._         ,.-'     #\`#\`#.
+         |       .'------' :       |#   #
+         |       :         :       |
+         |       :         :       |
+                 :         :
+`;
+
+    let face = baseFace;
+
+    // Update eyes
+    const leftEye = face.indexOf("><'(##)'>");
+    const rightEye = face.indexOf("( <'(##)`><");
+    
+    const eyes = {
+        left:   ["<<'(##)'>", "( <'(##)<<"],
+        center: ["<>'(##)'>", "( <'(##)><"],
+        right:  [">'(##)'>", "( <'(##)>>"]
+    };
+
+    face = face.slice(0, leftEye) + eyes[doomFaceState.eyeDirection][0] + face.slice(leftEye + 10);
+    face = face.slice(0, rightEye) + eyes[doomFaceState.eyeDirection][1] + face.slice(rightEye + 11);
+
+    // Update mouth
+    const mouthIndex = face.indexOf("-     -");
+    const mouths = {
+        neutral: "------",
+        happy:   "\\___/",
+        sad:     "/___\\",
+        ooh:     "  O  "
+    };
+    face = face.slice(0, mouthIndex) + mouths[doomFaceState.mouthState].padStart(7, " ") + face.slice(mouthIndex + 7);
+
+    // Apply blinking
+    if (doomFaceState.blinking) {
+        face = face.replace(/><'.*?'>/g, "--'-----'--").replace(/\( <'.*?</, "(-'-----'--)");
+    }
+
+    doomFace.textContent = face;
+
+    // Randomly change eye direction
+    if (Math.random() < 0.1) {
+        doomFaceState.eyeDirection = ['left', 'center', 'right'][Math.floor(Math.random() * 3)];
+    }
+
+    // Randomly change mouth state
+    if (Math.random() < 0.05) {
+        doomFaceState.mouthState = ['neutral', 'happy', 'sad', 'ooh'][Math.floor(Math.random() * 4)];
+    }
+
+    // Randomly blink
+    doomFaceState.blinking = Math.random() < 0.1;
+}
+
+// Modify the displayOutput function to create the Doom face if it doesn't exist
 function displayOutput(text, clearFirst = false) {
     if (clearFirst) {
         output.textContent = '';
     }
-    const clockHTML = `<pre id="ascii-clock" style="position: absolute; top: 10px; right: 10px; font-family: monospace; font-size: 10px; line-height: 1; color: #0f0;"></pre>`;
+    if (!doomFace) {
+        createDoomFace();
+    }
+    const clockHTML = `<pre id="ascii-clock" style="position: fixed; top: 10px; right: 10px; font-family: monospace; font-size: 10px; line-height: 1; color: #0f0;"></pre>`;
     output.innerHTML += text.replace(/\n/g, '<br>') + '<br>';
     output.innerHTML += clockHTML;
     updateClock();
     terminal.scrollTop = terminal.scrollHeight;
 }
 
+// Modify the clearScreen function to remove the Doom face
 function clearScreen() {
     output.textContent = '';
+    if (doomFace) {
+        document.body.removeChild(doomFace);
+        doomFace = null;
+        clearInterval(doomFaceInterval);
+    }
     displayOutput(pages.home);
 }
 
