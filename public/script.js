@@ -28,8 +28,14 @@ const pages = {
 Welcome to the Terminal Website!
 
 Navigation Guide:
-- ls         : List available pages
-- cd [page]  : Go to a specific page
+- ls         : List contents of the current directory
+- cd [dir]   : Change directory
+- pwd        : Print working directory
+- cat [file] : View the contents of a text file
+- mkdir [dir]: Create a new directory
+- touch [file]: Create a new empty file
+- rm [item]  : Remove a file or directory
+- mv [src] [dest]: Move or rename a file or directory
 - help       : Show this guide
 - clear      : Clear the screen and show the navigation guide
 - secret     : Access the secret page (requires password)
@@ -42,8 +48,6 @@ Navigation Guide:
 - snake start [difficulty] : Start a new Snake game in the bottom right corner
                              Difficulties: easy, medium (default), hard
                              The game will start after a 5-second countdown.
-- cat [filename] : View the contents of a text file
-- pwd        : Print working directory
 - Note: An animated ASCII art face will appear in the top-left corner.
 
 Enter a command to get started.`,
@@ -579,12 +583,101 @@ async function login(username, password) {
             hideLoginForm();
             displayOutput('Login successful. Welcome, ' + username + '!');
         } else {
-            alert('Invalid credentials. Please try again.');
+            displayOutput('Login failed. Please try again.');
         }
     } catch (error) {
         console.error('Login error:', error);
-        alert('An error occurred during login. Please try again.');
+        displayOutput('An error occurred during login. Please try again.');
     }
+}
+
+async function handleMkdir(args) {
+  if (args.length !== 1) {
+    displayOutput('Usage: mkdir <directory_name>');
+    return;
+  }
+  try {
+    const dirPath = pathJoin(currentPath, args[0]);
+    const response = await fetch(`/directory${dirPath}`, { method: 'POST' });
+    const data = await response.json();
+    if (data.success) {
+      displayOutput(`Directory '${args[0]}' created successfully.`);
+    } else {
+      displayOutput(`Error: ${data.message}`);
+    }
+  } catch (error) {
+    console.error('Error in handleMkdir:', error);
+    displayOutput('Error: Unable to create directory. Please try again.');
+  }
+}
+
+async function handleTouch(args) {
+  if (args.length !== 1) {
+    displayOutput('Usage: touch <filename>');
+    return;
+  }
+  try {
+    const filePath = pathJoin(currentPath, args[0]);
+    const response = await fetch(`/file${filePath}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: '' })
+    });
+    const data = await response.json();
+    if (data.success) {
+      displayOutput(`File '${args[0]}' created successfully.`);
+    } else {
+      displayOutput(`Error: ${data.message}`);
+    }
+  } catch (error) {
+    console.error('Error in handleTouch:', error);
+    displayOutput('Error: Unable to create file. Please try again.');
+  }
+}
+
+async function handleRm(args) {
+  if (args.length !== 1) {
+    displayOutput('Usage: rm <filename_or_directory>');
+    return;
+  }
+  try {
+    const itemPath = pathJoin(currentPath, args[0]);
+    const response = await fetch(`/fs${itemPath}`, { method: 'DELETE' });
+    const data = await response.json();
+    if (data.success) {
+      displayOutput(`'${args[0]}' deleted successfully.`);
+    } else {
+      displayOutput(`Error: ${data.message}`);
+    }
+  } catch (error) {
+    console.error('Error in handleRm:', error);
+    displayOutput('Error: Unable to delete item. Please try again.');
+  }
+}
+
+async function handleMv(args) {
+  if (args.length !== 2) {
+    displayOutput('Usage: mv <source> <destination>');
+    return;
+  }
+  try {
+    const sourcePath = pathJoin(currentPath, args[0]);
+    const destPath = pathJoin(currentPath, args[1]);
+    const response = await fetch(`/fs${sourcePath}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newPath: destPath })
+    });
+    const data = await response.json();
+    if (data.success) {
+      displayOutput(`'${args[0]}' moved to '${args[1]}' successfully.`);
+    } else {
+      displayOutput(`Error: ${data.message}`);
+    }
+  } catch (error) {
+    console.error('Error in handleMv:', error);
+    displayOutput('Error: Unable to move item. Please try again.');
+  }
 }
 
 function processCommand(command) {
@@ -636,33 +729,53 @@ function processCommand(command) {
                 displayOutput(`Command not recognized: ${command}`);
         }
     } else {
-        if (cmd === 'ls') {
-            handleLs();
-        } else if (cmd.startsWith('cd ')) {
-            const args = cmd.split(' ').slice(1);
-            handleCd(args);
-        } else if (cmd === 'pwd') {
-            handlePwd();
-        } else if (cmd === 'help') {
-            displayOutput(pages.home);
-        } else if (cmd === 'clear') {
-            clearScreen();
-        } else if (cmd === 'secret') {
-            awaitingPassword = true;
-            displayOutput('Enter the password to access the secret page:');
-        } else if (cmd === 'logout') {
-            logout();
-        } else if (cmd === 'projects') {
-            listProjects();
-        } else if (cmd.startsWith('project ')) {
-            const projectName = cmd.split(' ')[1];
-            currentProject = projectName;
-            viewProject(projectName);
-        } else if (cmd.startsWith('cat ')) {
-            const args = cmd.split(' ').slice(1);
-            handleCat(args);
-        } else {
-            displayOutput(`Command not recognized: ${command}`);
+        switch (parts[0]) {
+            case 'ls':
+                handleLs();
+                break;
+            case 'cd':
+                handleCd(parts.slice(1));
+                break;
+            case 'pwd':
+                handlePwd();
+                break;
+            case 'cat':
+                handleCat(parts.slice(1));
+                break;
+            case 'mkdir':
+                handleMkdir(parts.slice(1));
+                break;
+            case 'touch':
+                handleTouch(parts.slice(1));
+                break;
+            case 'rm':
+                handleRm(parts.slice(1));
+                break;
+            case 'mv':
+                handleMv(parts.slice(1));
+                break;
+            case 'help':
+                displayOutput(pages.home);
+                break;
+            case 'clear':
+                clearScreen();
+                break;
+            case 'secret':
+                awaitingPassword = true;
+                displayOutput('Enter the password to access the secret page:');
+                break;
+            case 'logout':
+                logout();
+                break;
+            case 'projects':
+                listProjects();
+                break;
+            case 'project':
+                currentProject = parts[1];
+                viewProject(parts[1]);
+                break;
+            default:
+                displayOutput(`Command not recognized: ${command}`);
         }
     } 
 }
@@ -697,6 +810,30 @@ input.addEventListener('focus', () => cursor.style.display = 'block');
 input.addEventListener('blur', () => cursor.style.display = 'none');
 
 // Login system
+async function login(username, password) {
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password }),
+        });
+        const data = await response.json();
+        if (data.success) {
+            isLoggedIn = true;
+            localStorage.setItem('isLoggedIn', 'true');
+            hideLoginForm();
+            displayOutput('Login successful. Welcome to the terminal!');
+        } else {
+            displayOutput('Login failed. Please try again.');
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        displayOutput('An error occurred during login. Please try again.');
+    }
+}
+
 function showLoginForm() {
     document.getElementById('login-art').textContent = makaraArt;
     document.getElementById('login-description').textContent = loginDescription;

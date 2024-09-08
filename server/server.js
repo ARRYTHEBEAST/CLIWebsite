@@ -1,225 +1,191 @@
-
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
+const fs = require('fs').promises;
 const path = require('path');
+const multer = require('multer');
 
 const app = express();
 const port = 3000;
 
-app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+// Set up session middleware
 app.use(session({
   secret: 'your-secret-key',
   resave: false,
   saveUninitialized: true
 }));
 
-const users = {
-  admin: '$2b$10$HkfxfIy9Y12mky4p7kyIxOS6BqOhgD5Z5TmjD/jtUfm.rOszobbSu' // bcrypt hash for 'password'
-};
+app.use(express.json());
+app.use(express.static('public'));
 
-const virtualFS = {
-  'home': {
-    'documents': {
-      'note.txt': 'This is a sample note.'
-    },
-    'images': {}
-  }
-};
+// Set up multer for file uploads
+const upload = multer({ dest: 'uploads/' });
 
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  if (users[username] && bcrypt.compareSync(password, users[username])) {
-    req.session.user = username;
-    res.json({ success: true });
+// Root directory for the virtual file system
+const ROOT_DIR = path.join(__dirname, 'vfs');
+
+// Ensure the root directory exists
+fs.mkdir(ROOT_DIR, { recursive: true }).catch(console.error);
+
+// Authentication middleware
+function requireAuth(req, res, next) {
+  if (req.session.user) {
+    next();
   } else {
-    res.status(401).json({ success: false, message: 'Invalid credentials' });
+    res.status(401).json({ success: false, message: 'Authentication required' });
+  }
+}
+
+// File system operations
+async function listDirectory(dirPath) {
+  const items = await fs.readdir(dirPath, { withFileTypes: true });
+  return items.reduce((acc, item) => {
+    acc[item.name] = item.isDirectory() ? 'directory' : 'file';
+    return acc;
+  }, {});
+}
+
+async function readFile(filePath) {
+  return fs.readFile(filePath, 'utf-8');
+}
+
+async function writeFile(filePath, content) {
+  await fs.writeFile(filePath, content, 'utf-8');
+}
+
+async function createDirectory(dirPath) {
+  await fs.mkdir(dirPath, { recursive: true });
+}
+
+async function deleteItem(itemPath) {
+  const stats = await fs.stat(itemPath);
+  if (stats.isDirectory()) {
+    await fs.rmdir(itemPath, { recursive: true });
+  } else {
+    await fs.unlink(itemPath);
+  }
+}
+
+async function renameItem(oldPath, newPath) {
+  await fs.rename(oldPath, newPath);
+}
+
+async function getFileInfo(filePath) {
+  const stats = await fs.stat(filePath);
+  return {
+    size: stats.size,
+    created: stats.birthtime,
+    modified: stats.mtime,
+    isDirectory: stats.isDirectory()
+  };
+}
+
+// API routes
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    // For demonstration purposes, we'll use a simple check
+    // In a real application, you should use proper authentication
+    if (username === 'admin' && password === 'password') {
+        req.session.user = { username };
+        res.json({ success: true, message: 'Login successful' });
+    } else {
+        res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+});
+
+app.get('/fs/*', requireAuth, async (req, res) => {
+  try {
+    const requestedPath = path.join(ROOT_DIR, req.params[0] || '');
+    const contents = await listDirectory(requestedPath);
+    res.json({ success: true, data: contents });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
   }
 });
 
-app.get('/fs/*', (req, res) => {
-  console.log('Received request for path:', req.params[0]);
-  console.log('Session:', req.session);
-  if (!req.session.user) {
-    console.log('User not authenticated');
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
+app.get('/file/*', requireAuth, async (req, res) => {
+  try {
+    const filePath = path.join(ROOT_DIR, req.params[0]);
+    const content = await readFile(filePath);
+    res.json({ success: true, content });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
   }
-  
-  const path = req.params[0].split('/').filter(Boolean);
-  console.log('Parsed path:', path);
-  let current = virtualFS;
-  for (let dir of path) {
-    if (current[dir] === undefined) {
-      console.log('Path not found:', dir);
-      return res.status(404).json({ success: false, message: 'Path not found' });
-    }
-    current = current[dir];
-  }
-  console.log('Returning directory contents:', current);
-  res.json({ success: true, data: current });
 });
 
-app.get('/file/*', (req, res) => {
-  if (!req.session.user) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
+app.post('/file/*', requireAuth, async (req, res) => {
+  try {
+    const filePath = path.join(ROOT_DIR, req.params[0]);
+    await writeFile(filePath, req.body.content);
+    res.json({ success: true, message: 'File created/updated successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
   }
-  
-  const filePath = req.params[0].split('/');
-  let current = virtualFS;
-  for (let i = 0; i < filePath.length - 1; i++) {
-    if (current[filePath[i]] === undefined) {
-      return res.status(404).json({ success: false, message: 'File not found' });
-    }
-    current = current[filePath[i]];
+});
+
+app.post('/directory/*', requireAuth, async (req, res) => {
+  try {
+    const dirPath = path.join(ROOT_DIR, req.params[0]);
+    await createDirectory(dirPath);
+    res.json({ success: true, message: 'Directory created successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
   }
-  const fileName = filePath[filePath.length - 1];
-  if (typeof current[fileName] !== 'string') {
-    return res.status(400).json({ success: false, message: 'Not a file' });
+});
+
+app.delete('/fs/*', requireAuth, async (req, res) => {
+  try {
+    const itemPath = path.join(ROOT_DIR, req.params[0]);
+    await deleteItem(itemPath);
+    res.json({ success: true, message: 'Item deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
   }
-  res.json({ success: true, content: current[fileName] });
+});
+
+app.put('/fs/*', requireAuth, async (req, res) => {
+  try {
+    const oldPath = path.join(ROOT_DIR, req.params[0]);
+    const newPath = path.join(ROOT_DIR, req.body.newPath);
+    await renameItem(oldPath, newPath);
+    res.json({ success: true, message: 'Item renamed successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/info/*', requireAuth, async (req, res) => {
+  try {
+    const itemPath = path.join(ROOT_DIR, req.params[0]);
+    const info = await getFileInfo(itemPath);
+    res.json({ success: true, info });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// Import file
+app.post('/import', requireAuth, upload.single('file'), async (req, res) => {
+  try {
+    const { filename, path: tempPath } = req.file;
+    const targetPath = path.join(ROOT_DIR, filename);
+    await fs.rename(tempPath, targetPath);
+    res.json({ success: true, message: 'File imported successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// Export file
+app.get('/export/*', requireAuth, async (req, res) => {
+  try {
+    const filePath = path.join(ROOT_DIR, req.params[0]);
+    res.download(filePath);
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
 });
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
-
-// const session = require('express-session');
-// const bcrypt = require('bcrypt');
-// const path = require('path');
-
-// const app = express();
-// const port = 3000;
-
-// app.use(express.json());
-// app.use(express.static(path.join(__dirname, '../public')));
-// app.use(session({
-//   secret: 'your-secret-key',
-//   resave: false,
-//   saveUninitialized: true
-// }));
-
-// const users = {
-//   admin: '$2b$10$HkfxfIy9Y12mky4p7kyIxOS6BqOhgD5Z5TmjD/jtUfm.rOszobbSu' // Replace with a bcrypt hash of the actual password
-// };
-
-// const virtualFS = {
-//   'home': {
-//     'documents': {
-//       'note.txt': 'This is a sample note.'
-//     },
-//     'images': {}
-//   }
-// };
-
-// app.post('/login', (req, res) => {
-//   const { username, password } = req.body;
-//   if (users[username] && bcrypt.compareSync(password, users[username])) {
-//     req.session.user = username;
-//     res.json({ success: true });
-//   } else {
-//     res.status(401).json({ success: false, message: 'Invalid credentials' });
-//   }
-// });
-
-// app.get('/fs/*', (req, res) => {
-//   console.log('Received request for path:', req.params[0]);
-//   if (!req.session.user) {
-//     console.log('User not authenticated');
-//     return res.status(401).json({ success: false, message: 'Not authenticated' });
-//   }
-  
-//   const path = req.params[0].split('/').filter(Boolean);
-//   console.log('Parsed path:', path);
-//   let current = virtualFS;
-//   for (let dir of path) {
-//     if (current[dir] === undefined) {
-//       console.log('Path not found:', dir);
-//       return res.status(404).json({ success: false, message: 'Path not found' });
-//     }
-//     current = current[dir];
-//   }
-//   console.log('Returning directory contents:', current);
-//   res.json({ success: true, data: current });
-// });
-
-// app.get('/file/*', (req, res) => {
-//   if (!req.session.user) {
-//     return res.status(401).json({ success: false, message: 'Not authenticated' });
-//   }
-  
-//   const filePath = req.params[0].split('/');
-//   let current = virtualFS;
-//   for (let i = 0; i < filePath.length - 1; i++) {
-//     if (current[filePath[i]] === undefined) {
-//       return res.status(404).json({ success: false, message: 'File not found' });
-//     }
-//     current = current[filePath[i]];
-//   }
-//   const fileName = filePath[filePath.length - 1];
-//   if (typeof current[fileName] !== 'string') {
-//     return res.status(400).json({ success: false, message: 'Not a file' });
-//   }
-//   res.json({ success: true, content: current[fileName] });
-// });
-
-// app.listen(port, () => {
-//   console.log(`Server running at http://localhost:${port}`);
-// });
-
-// // ... existing code ...
-
-// let currentPath = '/home';
-// let isLoggedIn = false;
-
-// async function login(username, password) {
-//   const response = await fetch('/login', {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify({ username, password })
-//   });
-//   const data = await response.json();
-//   if (data.success) {
-//     isLoggedIn = true;
-//     output('Login successful. Welcome to the virtual file system!');
-//     // Hide login form, show terminal
-//   } else {
-//     output('Login failed. Please try again.');
-//   }
-// }
-
-// async function fetchDirectory(path) {
-//   if (!isLoggedIn) {
-//     output('Please login first.');
-//     return;
-//   }
-//   const response = await fetch(`/fs${path}`);
-//   const data = await response.json();
-//   if (data.success) {
-//     return data.data;
-//   } else {
-//     output(data.message);
-//     return null;
-//   }
-// }
-
-// // Update your existing command handlers to use these new functions
-// // For example:
-
-// async function handleLs() {
-//   const directory = await fetchDirectory(currentPath);
-//   if (directory) {
-//     output(Object.keys(directory).join('\n'));
-//   }
-// }
-
-// async function handleCd(args) {
-//   const newPath = path.join(currentPath, args[0]);
-//   const directory = await fetchDirectory(newPath);
-//   if (directory) {
-//     currentPath = newPath;
-//     output(`Changed directory to ${currentPath}`);
-//   }
-// }
-
-// // ... rest of your existing code ...
