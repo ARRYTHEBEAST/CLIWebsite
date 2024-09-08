@@ -48,6 +48,7 @@ Navigation Guide:
 - snake start [difficulty] : Start a new Snake game in the bottom right corner
                              Difficulties: easy, medium (default), hard
                              The game will start after a 5-second countdown.
+- vim [file] : Edit a file using Vim like editor.
 - Note: An animated ASCII art face will appear in the top-left corner.
 
 Enter a command to get started.`,
@@ -730,6 +731,9 @@ function processCommand(command) {
         }
     } else {
         switch (parts[0]) {
+            case 'vim':
+                handleVim(parts.slice(1));
+                break;
             case 'ls':
                 handleLs();
                 break;
@@ -808,6 +812,109 @@ function getTextWidth(text, font) {
 
 input.addEventListener('focus', () => cursor.style.display = 'block');
 input.addEventListener('blur', () => cursor.style.display = 'none');
+
+async function handleVim(args) {
+    if (args.length !== 1) {
+      displayOutput('Usage: vim <filename>');
+      return;
+    }
+    const filename = args[0];
+    const filePath = pathJoin(currentPath, filename);
+    
+    try {
+      const response = await fetch(`/file${filePath}`);
+      const data = await response.json();
+      let content = data.success ? data.content : '';
+      
+      enterVimMode(filename, content);
+    } catch (error) {
+      console.error('Error in handleVim:', error);
+      displayOutput('Error: Unable to open file. Please try again.');
+    }
+  }
+  
+  function enterVimMode(filename, content) {
+    const vimContainer = document.createElement('div');
+    vimContainer.id = 'vim-container';
+    vimContainer.innerHTML = `
+      <div id="vim-header">Editing: ${filename} (Press ESC then type :w to save, :q to quit)</div>
+      <textarea id="vim-editor">${content}</textarea>
+      <div id="vim-footer">NORMAL MODE</div>
+    `;
+    document.body.appendChild(vimContainer);
+    
+    const editor = document.getElementById('vim-editor');
+    const footer = document.getElementById('vim-footer');
+    let mode = 'normal';
+    let command = '';
+    
+    editor.focus();
+    
+    editor.addEventListener('keydown', function(e) {
+      if (mode === 'normal') {
+        e.preventDefault();
+        if (e.key === 'i') {
+          mode = 'insert';
+          footer.textContent = 'INSERT MODE';
+        } else if (e.key === ':') {
+          mode = 'command';
+          command = ':';
+          footer.textContent = command;
+        } else if (e.key === 'Escape') {
+          mode = 'normal';
+          footer.textContent = 'NORMAL MODE';
+        }
+      } else if (mode === 'command') {
+        e.preventDefault();
+        if (e.key === 'Enter') {
+          executeCommand(command, filename, editor.value);
+        } else if (e.key === 'Escape') {
+          mode = 'normal';
+          command = '';
+          footer.textContent = 'NORMAL MODE';
+        } else {
+          command += e.key;
+          footer.textContent = command;
+        }
+      } else if (mode === 'insert' && e.key === 'Escape') {
+        mode = 'normal';
+        footer.textContent = 'NORMAL MODE';
+      }
+    });
+  }
+  
+  async function executeCommand(cmd, filename, content) {
+    if (cmd === ':w') {
+      try {
+        const filePath = pathJoin(currentPath, filename);
+        const response = await fetch(`/file${filePath}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        const data = await response.json();
+        if (data.success) {
+          displayOutput(`File '${filename}' saved successfully.`);
+        } else {
+          displayOutput(`Error: ${data.message}`);
+        }
+      } catch (error) {
+        console.error('Error saving file:', error);
+        displayOutput('Error: Unable to save file. Please try again.');
+      }
+    } else if (cmd === ':q') {
+      exitVimMode();
+    } else {
+      displayOutput('Unknown command. Use :w to save or :q to quit.');
+    }
+  }
+  
+  function exitVimMode() {
+    const vimContainer = document.getElementById('vim-container');
+    if (vimContainer) {
+      vimContainer.remove();
+    }
+  }
 
 // Login system
 async function login(username, password) {
