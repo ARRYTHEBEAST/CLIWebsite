@@ -825,20 +825,25 @@ async function handleVim(args) {
       const response = await fetch(`/file${filePath}`);
       const data = await response.json();
       let content = data.success ? data.content : '';
+      let isEncrypted = content.startsWith('encrypted:');
       
-      enterVimMode(filename, content);
+      if (isEncrypted) {
+        content = content.slice(10); // Remove 'encrypted:' prefix
+      }
+      
+      enterVimMode(filename, content, isEncrypted);
     } catch (error) {
       console.error('Error in handleVim:', error);
       displayOutput('Error: Unable to open file. Please try again.');
     }
   }
   
-  function enterVimMode(filename, content) {
+  function enterVimMode(filename, content, isEncrypted) {
     const vimContainer = document.createElement('div');
     vimContainer.id = 'vim-container';
     vimContainer.innerHTML = `
-      <div id="vim-header">Editing: ${filename} (Press ESC then type :w to save, :q to quit)</div>
-      <textarea id="vim-editor">${content}</textarea>
+      <div id="vim-header">Editing: ${filename} (Press ESC then type :w to save, :q to quit, :X to encrypt)</div>
+      <textarea id="vim-editor">${isEncrypted ? 'Encrypted content. Enter password to decrypt.' : content}</textarea>
       <div id="vim-footer">NORMAL MODE</div>
     `;
     document.body.appendChild(vimContainer);
@@ -849,6 +854,22 @@ async function handleVim(args) {
     let command = '';
     
     editor.focus();
+
+    if (isEncrypted) {
+    const password = prompt('Enter password to decrypt:');
+    if (password) {
+      decryptContent(content, password)
+        .then(decryptedContent => {
+          editor.value = decryptedContent;
+        })
+        .catch(error => {
+          console.error('Decryption error:', error);
+          displayOutput('Error: Unable to decrypt file. Incorrect password or corrupted file.');
+        });
+    } else {
+      editor.value = 'Encrypted content. Use :X to re-encrypt with a new password.';
+    }
+  }
     
     editor.addEventListener('keydown', function(e) {
       if (mode === 'normal') {
@@ -867,7 +888,7 @@ async function handleVim(args) {
       } else if (mode === 'command') {
         e.preventDefault();
         if (e.key === 'Enter') {
-          executeCommand(command, filename, editor.value);
+          executeCommand(command, filename, editor.value, isEncrypted);
         } else if (e.key === 'Escape') {
           mode = 'normal';
           command = '';
@@ -883,14 +904,15 @@ async function handleVim(args) {
     });
   }
   
-  async function executeCommand(cmd, filename, content) {
+  async function executeCommand(cmd, filename, content, isEncrypted) {
     if (cmd === ':w') {
       try {
         const filePath = pathJoin(currentPath, filename);
+        let finalContent = isEncrypted ? 'encrypted:' + content : content;
         const response = await fetch(`/file${filePath}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content })
+          body: JSON.stringify({ content: finalContent })
         });
         const data = await response.json();
         if (data.success) {
@@ -904,8 +926,21 @@ async function handleVim(args) {
       }
     } else if (cmd === ':q') {
       exitVimMode();
+    } else if (cmd === ':X') {
+      const password = prompt('Enter password for encryption:');
+      if (password) {
+        try {
+          const encryptedContent = await encryptContent(content, password);
+          document.getElementById('vim-editor').value = encryptedContent;
+          isEncrypted = true;
+          displayOutput('File encrypted. Use :w to save.');
+        } catch (error) {
+          console.error('Encryption error:', error);
+          displayOutput('Error: Unable to encrypt file. Please try again.');
+        }
+      }
     } else {
-      displayOutput('Unknown command. Use :w to save or :q to quit.');
+      displayOutput('Unknown command. Use :w to save, :q to quit, or :X to encrypt.');
     }
   }
   
@@ -914,6 +949,60 @@ async function handleVim(args) {
     if (vimContainer) {
       vimContainer.remove();
     }
+  }
+  async function encryptContent(content, password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content);
+    const passwordKey = await deriveKey(password);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encryptedContent = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: iv },
+      passwordKey,
+      data
+    );
+    const encryptedArray = new Uint8Array(encryptedContent);
+    const resultArray = new Uint8Array(iv.length + encryptedArray.length);
+    resultArray.set(iv, 0);
+    resultArray.set(encryptedArray, iv.length);
+    return btoa(String.fromCharCode.apply(null, resultArray));
+  }
+  
+  async function decryptContent(encryptedContent, password) {
+    const decoder = new TextDecoder();
+    const encryptedData = Uint8Array.from(atob(encryptedContent), c => c.charCodeAt(0));
+    const iv = encryptedData.slice(0, 12);
+    const data = encryptedData.slice(12);
+    const passwordKey = await deriveKey(password);
+    const decryptedContent = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: iv },
+      passwordKey,
+      data
+    );
+    return decoder.decode(decryptedContent);
+  }
+  
+  async function deriveKey(password) {
+    const encoder = new TextEncoder();
+    const passwordData = encoder.encode(password);
+    const passwordKey = await crypto.subtle.importKey(
+      'raw',
+      passwordData,
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: new Uint8Array(16),
+        iterations: 100000,
+        hash: 'SHA-256'
+      },
+      passwordKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
   }
 
 // Login system
