@@ -1,0 +1,2 @@
+Decryption error: Unable to decrypt file, no promt of password.
+Logout error: Unable to logout.
