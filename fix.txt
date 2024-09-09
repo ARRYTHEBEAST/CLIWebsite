@@ -2,4 +2,5 @@
 2. Logout error: Unable to logout.
 3. The file symbol is not showing up.
 4. Insert files function feature.
+5. Restart snake game function.
 

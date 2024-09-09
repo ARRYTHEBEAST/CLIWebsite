@@ -340,7 +340,7 @@ function startSnakeGame(difficulty = 'medium') {
     displayOutput(snakeArt);
     displayOutput(`Snake game is starting on ${gameDifficulty} difficulty...`);
 
-    let countdown = 5;
+    let countdown = 2;
     const countdownInterval = setInterval(() => {
         displayOutput(`${countdown}...`);
         countdown--;
