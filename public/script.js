@@ -714,6 +714,7 @@ function processCommand(command) {
         startSnakeGame(difficulty);
     } else if (currentPage === 'project-view') {
         switch (cmd) {
+            
             case 'back':
                 currentPage = 'home';
                 clearScreen();
@@ -769,7 +770,9 @@ function processCommand(command) {
                 displayOutput('Enter the password to access the secret page:');
                 break;
             case 'logout':
-                logout();
+                //logout();
+                localStorage.isLoggedIn = false
+                showLoginForm()
                 break;
             case 'projects':
                 listProjects();

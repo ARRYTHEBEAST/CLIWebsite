@@ -1,5 +1,5 @@
 1. Decryption error: Unable to decrypt file, no promt of password.
-2. Logout error: Unable to logout.
+2. ##FIXED## Logout error: Unable to logout.
 3. The file symbol is not showing up.
 4. Insert files function feature.
 5. Restart snake game function.
