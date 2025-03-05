@@ -80,11 +80,8 @@ async function getFileInfo(filePath) {
   };
 }
 
-// API routes
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    // For demonstration purposes, we'll use a simple check
-    // In a real application, you should use proper authentication
     if (username === 'admin' && password === 'password') {
         req.session.user = { username };
         res.json({ success: true, message: 'Login successful' });
